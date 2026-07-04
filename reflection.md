@@ -2,11 +2,53 @@
 
 ## 1. System Design
 
+Core Actions
+- Setup owner and their schedules
+- Add/View pets and their related tasks
+- Viewing a organized daily task view
+- Schedule each pet task adhering closest to each owner's schedule
+
+Objects:
+
+- Owner
+    * Name
+    * List of Pets
+    * Schedule
+- Pets
+    * Name
+    * Type of Pet
+    * Breed
+    * List of Tasks
+    * Medications
+- Tasks
+    * Name
+    * Type (walk, feeding, etc.)
+    * Duration
+    * Priority
+    * Description
+- Scheduler
+    * Name
+    * Get Schedules
+    * Schedule Event
+    * Delete Event
+- Events
+    * Name
+    * Tasks
+    * DateTime
+- Medication
+    * Name
+    * Dosage
+    * Frequency
+
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+  The initial design tries to keep in mind that Owners and their Pets each have individual schedules. It also respects that tasks and events are not exactly the same thing so tasks can exist on their own without being tied to a given scheduled event.
+
 - What classes did you include, and what responsibilities did you assign to each?
 
+  The initial design defines the Owner, Pet, Medication, Task, Event, Schedule, and Scheduler classes. The Owner keeps track of their Schedule and Pets. Pets keep track of their related tasks and medications. Medications keep only have basic properties. Tasks keep track of their duration, status, priority, and whether they are recurring. Events exist with or without tasks and can have tasks be associated with them. Schedules keep track of events associated with them. Finally the Scheduler finds and arranges tasks to the corresponding schedules of pets and owners.
 **b. Design changes**
 
 - Did your design change during implementation?

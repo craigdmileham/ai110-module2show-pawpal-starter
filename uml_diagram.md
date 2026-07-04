@@ -4,6 +4,7 @@
 classDiagram
     class Owner {
         -name: String
+        -id: int
         -pets: List~Pet~
         -schedule: Schedule
         +getName(): String
@@ -15,6 +16,7 @@ classDiagram
 
     class Pet {
         -name: String
+        -id: int
         -type: String
         -breed: String
         -tasks: List~Task~
@@ -32,19 +34,28 @@ classDiagram
 
     class Task {
         -name: String
+        -id: int
         -type: String
         -duration: int
+        -recurring: Boolean
         -priority: String
         -description: String
+        -status: String
         +getName(): String
         +getType(): String
         +getDuration(): int
+        +setDuration(): int
         +getPriority(): String
+        +setPriority(): String
         +getDescription(): String
+        +setDescription(): String
+        +getStatus(): String
+        +setStatus(status: String): void
     }
 
     class Medication {
         -name: String
+        -id: int
         -dosage: String
         -frequency: String
         +getName(): String
@@ -53,6 +64,7 @@ classDiagram
     }
 
     class Schedule {
+        -id: int
         -events: List~Event~
         +addEvent(event: Event): void
         +removeEvent(event: Event): void
@@ -60,8 +72,8 @@ classDiagram
     }
 
     class Event {
-        -date: Date
-        -time: Time
+        -id: int
+        -datetime: DateTime
         -tasks: List~Task~
         +getDate(): Date
         +getTime(): Time
@@ -70,12 +82,30 @@ classDiagram
         +removeTask(task: Task): void
     }
 
+    class Scheduler {
+        -id: int
+        -schedules: List~Schedule~
+        +getTasksByPet(pet: Pet): List~Task~
+        +getTasksByOwner(owner: Owner): List~Task~
+        +getTasksByStatus(status: String): List~Task~
+        +getTasksByPriority(priority: String): List~Task~
+        +getUpcomingTasks(owner: Owner): List~Task~
+        +markTaskComplete(task: Task): void
+        +reassignTask(task: Task, pet: Pet): void
+        +addSchedule(schedule: Schedule): void
+        +removeSchedule(schedule: Schedule): void
+        +getSchedules(): List~Schedule~
+        +scheduleTask(task: Task, event: Event, schedule: Schedule): void
+    }
+
     Owner "1" --> "*" Pet
     Pet "1" --> "*" Task
     Pet "1" --> "*" Medication
     Owner "1" --> "1" Schedule
     Schedule "1" --> "*" Event
     Event "1" --> "*" Task
+    Owner "1" --> "1" Scheduler
+    Scheduler "1" --> "*" Schedule
 ```
 
 ## Relationships
@@ -84,3 +114,5 @@ classDiagram
 - **Pet has Tasks**: One pet can have multiple tasks (1-to-many)
 - **Pet takes Medications**: One pet can take multiple medications (1-to-many)
 - **Owner maintains Schedule**: One owner has one schedule (1-to-1)
+- **Owner uses Scheduler**: One owner has one scheduler (1-to-1) that retrieves, organizes, and manages tasks across all pets
+- **Scheduler manages Schedules**: One scheduler manages multiple schedules (1-to-many), adjusting and organizing them across all pets

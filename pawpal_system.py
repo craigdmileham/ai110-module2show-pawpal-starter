@@ -1,15 +1,22 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List
+import itertools
+
+_id_counter = itertools.count(1)
+
+
+def _next_id() -> int:
+    return next(_id_counter)
 
 
 @dataclass
 class Medication:
     name: str
-    id: int
     dosage: str
     frequency: str
     events: List["Event"] = field(default_factory=list)  # scheduled reminder events
+    id: int = field(default_factory=_next_id)
 
     def get_name(self) -> str:
         """Return the medication name."""
@@ -27,7 +34,6 @@ class Medication:
 @dataclass
 class Task:
     name: str
-    id: int
     type: str
     duration: int
     recurring: bool
@@ -35,6 +41,7 @@ class Task:
     description: str
     status: str
     pet_id: int | None = None  # back-reference so reassign_task can find current owner
+    id: int = field(default_factory=_next_id)
 
     def get_name(self) -> str:
         """Return the task name."""
@@ -80,19 +87,19 @@ class Task:
 @dataclass
 class Pet:
     name: str
-    id: int
-    type: str
-    breed: str
+    species: str
+    breed: str = None
     tasks: List[Task] = field(default_factory=list)
     medications: List[Medication] = field(default_factory=list)
+    id: int = field(default_factory=_next_id)
 
     def get_name(self) -> str:
         """Return the pet's name."""
         return self.name
 
-    def get_type(self) -> str:
+    def get_species(self) -> str:
         """Return the pet's species type (e.g. Dog, Cat)."""
-        return self.type
+        return self.species
 
     def get_breed(self) -> str:
         """Return the pet's breed."""
@@ -127,9 +134,9 @@ class Pet:
 
 @dataclass
 class Event:
-    id: int
     datetime: str
     tasks: List[Task] = field(default_factory=list)
+    id: int = field(default_factory=_next_id)
 
     def get_date(self) -> str:
         """Return the date portion of the event's datetime string."""
@@ -155,8 +162,8 @@ class Event:
 
 @dataclass
 class Schedule:
-    id: int
     events: List[Event] = field(default_factory=list)
+    id: int = field(default_factory=_next_id)
 
     def add_event(self, event: Event) -> None:
         """Add an event to this schedule."""
@@ -173,8 +180,8 @@ class Schedule:
 
 @dataclass
 class Scheduler:
-    id: int
     schedules: List[Schedule] = field(default_factory=list)
+    id: int = field(default_factory=_next_id)
 
     def get_tasks_by_pet(self, pet: Pet) -> List[Task]:
         """Return all tasks assigned to a specific pet."""
@@ -252,9 +259,9 @@ class Scheduler:
 @dataclass
 class Owner:
     name: str
-    id: int
     pets: List[Pet] = field(default_factory=list)
-    scheduler: Scheduler = field(default_factory=lambda: Scheduler(id=0))
+    scheduler: Scheduler = field(default_factory=Scheduler)
+    id: int = field(default_factory=_next_id)
 
     def get_name(self) -> str:
         """Return the owner's name."""

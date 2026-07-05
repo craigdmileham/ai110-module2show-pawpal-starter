@@ -5,6 +5,8 @@ import itertools
 
 _id_counter = itertools.count(1)
 
+_PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
 
 def _next_id() -> int:
     return next(_id_counter)
@@ -40,6 +42,7 @@ class Task:
     priority: str
     description: str
     status: str
+    frequency: str | None = None  # "daily" | "weekly" | None
     pet_id: int | None = None  # back-reference so reassign_task can find current owner
     id: int = field(default_factory=_next_id)
 
@@ -173,8 +176,10 @@ class Schedule:
         """Remove an event from this schedule."""
         self.events.remove(event)
 
-    def get_events(self) -> List[Event]:
-        """Return all events in this schedule."""
+    def get_events(self, sort: bool = False) -> List[Event]:
+        """Return all events in this schedule, optionally sorted by datetime."""
+        if sort:
+            return sorted(self.events, key=lambda e: e.datetime)
         return self.events
 
 
@@ -199,6 +204,10 @@ class Scheduler:
         """Return all of an owner's tasks that match the given priority level."""
         return [t for t in self.get_tasks_by_owner(owner) if t.priority == priority]
 
+    def get_tasks_by_pet_name(self, owner: Owner, pet_name: str) -> List[Task]:
+        """Return all tasks assigned to the pet with the given name."""
+        return [task for pet in owner.pets if pet.name == pet_name for task in pet.tasks]
+
     def get_upcoming_tasks(self, owner: Owner, window: int) -> List[Task]:
         """Return owner's tasks scheduled within the next `window` days."""
         from datetime import datetime, timedelta
@@ -220,9 +229,43 @@ class Scheduler:
                             seen.add(id(task))
         return upcoming
 
-    def mark_task_complete(self, task: Task) -> None:
-        """Set the task's status to 'complete'."""
+    def mark_task_complete(
+        self,
+        task: Task,
+        schedule: Schedule | None = None,
+        pet: Pet | None = None,
+    ) -> Task | None:
+        """Set the task's status to 'complete'.
+
+        If the task has a frequency ('daily' or 'weekly') and a schedule is
+        provided, a new pending instance is created for the next occurrence,
+        added to the pet (if provided), and scheduled into a new Event.
+        Returns the new Task, or None if no recurrence was created.
+        """
+        from datetime import datetime, timedelta
         task.status = "complete"
+        if task.frequency is None or schedule is None:
+            return None
+        delta = timedelta(days=1) if task.frequency == "daily" else timedelta(days=7)
+        new_dt = (
+            datetime.now() + delta
+        ).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        new_task = Task(
+            name=task.name,
+            type=task.type,
+            duration=task.duration,
+            recurring=task.recurring,
+            frequency=task.frequency,
+            priority=task.priority,
+            description=task.description,
+            status="pending",
+            pet_id=task.pet_id,
+        )
+        if pet is not None:
+            pet.add_task(new_task)
+        new_event = Event(datetime=new_dt)
+        self.schedule_task(new_task, new_event, schedule)
+        return new_task
 
     def reassign_task(self, task: Task, pet: Pet) -> None:
         """Move a task to a new pet; caller must remove it from the old pet first."""
@@ -251,9 +294,34 @@ class Scheduler:
 
     def schedule_task(self, task: Task, event: Event, schedule: Schedule) -> None:
         """Add a task to an event and ensure that event belongs to the schedule."""
+        for existing in event.tasks:
+            if existing.pet_id is not None and existing.pet_id == task.pet_id:
+                print(
+                    f"[WARNING] Conflict at {event.datetime}: pet_id={task.pet_id} "
+                    f"already has '{existing.name}'. Adding '{task.name}' anyway."
+                )
+                break
         event.add_task(task)
         if event not in schedule.events:
             schedule.add_event(event)
+
+    def get_tasks_sorted_by_priority(self, owner: Owner) -> List[Task]:
+        """Return all owner tasks ordered high > medium > low."""
+        return sorted(self.get_tasks_by_owner(owner), key=lambda t: _PRIORITY_ORDER.get(t.priority, 99))
+
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Return tasks sorted by their earliest scheduled event time (HH:MM).
+        Tasks with no scheduled event are placed at the end."""
+        task_times: dict[int, str] = {}
+        for schedule in self.schedules:
+            for event in schedule.events:
+                event_time = event.get_time()
+                for task in event.tasks:
+                    if id(task) not in task_times:
+                        task_times[id(task)] = event_time
+        return sorted(tasks, key=lambda t: tuple(map(int, task_times[id(t)].split(":")))
+                                           if id(t) in task_times and task_times[id(t)]
+                                           else (24, 0))
 
 
 @dataclass

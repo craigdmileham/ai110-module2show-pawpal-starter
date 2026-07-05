@@ -1,4 +1,5 @@
 import streamlit as st
+from pawpal_system import Owner, Pet, Task, Schedule, Event, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -38,16 +39,39 @@ At minimum, your system should:
 
 st.divider()
 
-st.subheader("Quick Demo Inputs (UI only)")
+# owners: dict of owner_name -> Owner
+if "owners" not in st.session_state:
+    st.session_state.owners = {}
+
+st.subheader("Owner & Pet")
 owner_name = st.text_input("Owner name", value="Jordan")
 pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 
-st.markdown("### Tasks")
-st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
+if st.button("Add owner & pet"):
+    owners = st.session_state.owners
+    if owner_name not in owners:
+        owners[owner_name] = Owner(name=owner_name)
+    owner = owners[owner_name]
 
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
+    existing_pet = next((p for p in owner.get_pets() if p.get_name() == pet_name), None)
+    if existing_pet:
+        st.info(f"{pet_name} already exists under {owner_name}.")
+    else:
+        pet = Pet(name=pet_name, species=species)
+        owner.add_pet(pet)
+        st.success(f"Added {pet_name} ({species}) under owner {owner_name}.")
+
+if st.session_state.owners:
+    st.write("Registered owners & pets:")
+    st.table([
+        {"Owner": o.get_name(), "Pet": p.get_name(), "Species": p.get_species()}
+        for o in st.session_state.owners.values()
+        for p in o.get_pets()
+    ])
+
+st.divider()
+st.markdown("### Tasks")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -57,14 +81,60 @@ with col2:
 with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
-if st.button("Add task"):
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+task_type = st.selectbox("Task type", ["exercise", "feeding", "grooming", "medication", "other"])
+description = st.text_input("Description (optional)", value="")
 
-if st.session_state.tasks:
+all_pets = [
+    (o, p)
+    for o in st.session_state.owners.values()
+    for p in o.get_pets()
+]
+pet_options = [f"{o.get_name()} → {p.get_name()}" for o, p in all_pets]
+
+if pet_options:
+    selected = st.selectbox("Assign task to", pet_options)
+    selected_owner, selected_pet = all_pets[pet_options.index(selected)]
+else:
+    st.info("Add an owner & pet above before adding tasks.")
+    selected_owner, selected_pet = None, None
+
+if st.button("Add task"):
+    if selected_pet is None:
+        st.error("Add an owner & pet first.")
+    else:
+        task = Task(
+            name=task_title,
+            type=task_type,
+            duration=int(duration),
+            recurring=False,
+            priority=priority,
+            description=description,
+            status="pending",
+        )
+        selected_pet.add_task(task)
+        st.success(f"Task '{task_title}' added to {selected_pet.get_name()}.")
+
+all_tasks = [
+    (o, p, t)
+    for o in st.session_state.owners.values()
+    for p in o.get_pets()
+    for t in p.get_tasks()
+]
+
+if all_tasks:
     st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+    st.table([
+        {
+            "Owner": o.get_name(),
+            "Pet": p.get_name(),
+            "Name": t.get_name(),
+            "Type": t.get_type(),
+            "Duration (min)": t.get_duration(),
+            "Priority": t.get_priority(),
+            "Status": t.get_status(),
+        }
+        for o, p, t in all_tasks
+    ])
 else:
     st.info("No tasks yet. Add one above.")
 

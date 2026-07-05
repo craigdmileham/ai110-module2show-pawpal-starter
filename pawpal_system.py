@@ -9,6 +9,7 @@ class Medication:
     id: int
     dosage: str
     frequency: str
+    events: List["Event"] = field(default_factory=list)  # scheduled reminder events
 
     def get_name(self) -> str:
         pass
@@ -30,6 +31,7 @@ class Task:
     priority: str
     description: str
     status: str
+    pet_id: int | None = None  # back-reference so reassign_task can find current owner
 
     def get_name(self) -> str:
         pass
@@ -147,13 +149,13 @@ class Scheduler:
     def get_tasks_by_owner(self, owner: Owner) -> List[Task]:
         pass
 
-    def get_tasks_by_status(self, status: str) -> List[Task]:
+    def get_tasks_by_status(self, owner: Owner, status: str) -> List[Task]:
         pass
 
-    def get_tasks_by_priority(self, priority: str) -> List[Task]:
+    def get_tasks_by_priority(self, owner: Owner, priority: str) -> List[Task]:
         pass
 
-    def get_upcoming_tasks(self, owner: Owner) -> List[Task]:
+    def get_upcoming_tasks(self, owner: Owner, window: int) -> List[Task]:
         pass
 
     def mark_task_complete(self, task: Task) -> None:
@@ -171,6 +173,9 @@ class Scheduler:
     def get_schedules(self) -> List[Schedule]:
         pass
 
+    def get_schedule(self, schedule_id: int) -> Schedule | None:
+        pass
+
     def schedule_task(self, task: Task, event: Event, schedule: Schedule) -> None:
         pass
 
@@ -180,7 +185,6 @@ class Owner:
     name: str
     id: int
     pets: List[Pet] = field(default_factory=list)
-    schedule: Schedule = field(default_factory=lambda: Schedule(id=0))
     scheduler: Scheduler = field(default_factory=lambda: Scheduler(id=0))
 
     def get_name(self) -> str:
@@ -193,7 +197,4 @@ class Owner:
         pass
 
     def remove_pet(self, pet: Pet) -> None:
-        pass
-
-    def get_schedule(self) -> Schedule:
         pass

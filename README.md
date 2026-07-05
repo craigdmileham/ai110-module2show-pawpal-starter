@@ -47,11 +47,23 @@ pip install -r requirements.txt
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+Today's Schedule
+========================================
+
+07:00:00
+  [Buddy] Morning Walk (30 min) — high priority
+  [Buddy] Breakfast (10 min) — high priority
+  [Whiskers] Brushing (10 min) — low priority
+
+12:00:00
+  [Buddy] Bath Time (20 min) — medium priority
+  [Whiskers] Playtime (15 min) — medium priority
+
+18:00:00
+  [Whiskers] Give Medication (5 min) — high priority
+
+Have a great day!
+
 ```
 
 ## 🧪 Testing PawPal+
@@ -72,14 +84,15 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Sort by priority | `Scheduler.get_tasks_sorted_by_priority` | Returns all tasks for an owner ordered high → medium → low. Tasks with an unrecognized priority are placed last. Uses the module-level `_PRIORITY_ORDER` mapping so the ordering is consistent everywhere. |
+| Sort by scheduled time | `Scheduler.sort_by_time` | Sorts a task list by the earliest event time (HH:MM) each task appears in. Tasks not linked to any scheduled event are placed at the end as `(24, 0)` so they don't get lost. |
+| Filter by status | `Scheduler.get_tasks_by_status` | Returns only the tasks whose `status` field matches the requested value (e.g., `"pending"`, `"complete"`). |
+| Filter by priority | `Scheduler.get_tasks_by_priority` | Returns only tasks whose `priority` field matches the requested level (e.g., `"high"`). |
+| Filter by upcoming window | `Scheduler.get_upcoming_tasks` | Returns tasks whose scheduled event falls within the next N days. Parses ISO-format datetimes and deduplicates tasks that appear in multiple events. |
+| Conflict detection | `Scheduler.schedule_task` | Before adding a task to an event, inspects existing tasks for same-pet conflicts (two tasks for the same pet at the same time) and cross-pet conflicts (two different pets at the same time slot). Warnings are printed and returned but are non-blocking — the task is always added. |
+| Recurring tasks | `Scheduler.mark_task_complete` | When a task has a `frequency` of `"daily"` or `"weekly"` and a schedule is provided, marking it complete automatically creates a new pending copy offset by 1 or 7 days respectively, adds it to the pet, and schedules it in a new Event. |
 
 ## 📸 Demo Walkthrough
 

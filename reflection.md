@@ -49,10 +49,13 @@ Objects:
 - What classes did you include, and what responsibilities did you assign to each?
 
   The initial design defines the Owner, Pet, Medication, Task, Event, Schedule, and Scheduler classes. The Owner keeps track of their Schedule and Pets. Pets keep track of their related tasks and medications. Medications keep only have basic properties. Tasks keep track of their duration, status, priority, and whether they are recurring. Events exist with or without tasks and can have tasks be associated with them. Schedules keep track of events associated with them. Finally the Scheduler finds and arranges tasks to the corresponding schedules of pets and owners.
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+My design changed after Claude looked over the skeleton of the implementation and found several missing relationships and potential logic flaws. One of the key changes needed was ownership of Schedules. In my first implementation the Owner also held ownership of Schedules so that changed to just the Scheduler owning the Schedules and changing each of the access methods to include the Owner as a parameter. I agreed that this needed to be changed in order to ensure that ownership was clear and that it would make it simpler to implement multiuser features later on.
 
 ---
 
@@ -63,11 +66,14 @@ Objects:
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+    My scheduler considers time and priority of tasks. I decided to focus on these because a pet owner should be focusing on the needs of their pet as opposed to their own preferences. Priority trumps time in this way but only when tasks occur at the same time. 
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+    My scheduler doesn't take into account the duration of a task when addressing task conflicts of different priority. Expanding on that tradeoff, you'd want to have a task with a higher priority to rise to the top over a lower priority task given time constraints. It is reasonable here because balancing the duration of a task with the owner's ability to perform it requires a certain amount of buffer time. In reality a reasonable expectation is to schedule based on 15 minute chunks to accomodate for variance. That would add a good amount of complexity to the scheduling algorithm.
 ---
 
 ## 3. AI Collaboration

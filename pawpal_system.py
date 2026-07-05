@@ -235,12 +235,16 @@ class Scheduler:
         schedule: Schedule | None = None,
         pet: Pet | None = None,
     ) -> Task | None:
-        """Set the task's status to 'complete'.
+        """Mark a task complete and, for recurring tasks, schedule the next occurrence.
 
-        If the task has a frequency ('daily' or 'weekly') and a schedule is
-        provided, a new pending instance is created for the next occurrence,
-        added to the pet (if provided), and scheduled into a new Event.
-        Returns the new Task, or None if no recurrence was created.
+        Always sets task.status = 'complete'. If the task has a frequency
+        ('daily' or 'weekly') AND a schedule is provided, a new Task copy is
+        created with status='pending' and its datetime offset by 1 day (daily)
+        or 7 days (weekly) from now. The new task is added to `pet` (if given)
+        and placed in a fresh Event that is appended to `schedule`.
+
+        Returns the newly created Task on recurrence, or None if the task is
+        non-recurring or no schedule was supplied.
         """
         from datetime import datetime, timedelta
         task.status = "complete"
@@ -292,26 +296,76 @@ class Scheduler:
                 return schedule
         return None
 
-    def schedule_task(self, task: Task, event: Event, schedule: Schedule) -> None:
-        """Add a task to an event and ensure that event belongs to the schedule."""
+    def schedule_task(
+        self,
+        task: Task,
+        event: Event,
+        schedule: Schedule,
+        pets: List["Pet"] | None = None,
+    ) -> str | None:
+        """Add a task to an event and ensure that event is registered in the schedule.
+
+        Conflict detection: before adding, inspects every task already in the
+        event. If another task shares the same pet_id a same-pet conflict
+        warning is raised; otherwise a cross-pet conflict warning is raised
+        (two different pets scheduled at the identical time slot). Only the
+        first conflict found is reported. The task is always added regardless —
+        warnings are non-blocking.
+
+        Pass `pets` to include human-readable pet names in warning messages;
+        without it the messages fall back to the numeric pet_id.
+
+        Returns the warning string if a conflict was detected, otherwise None.
+        """
+        def _pet_name(pid: int | None) -> str:
+            if pets and pid is not None:
+                match = next((p.name for p in pets if p.id == pid), None)
+                if match:
+                    return match
+            return f"pet_id={pid}"
+
+        warning = None
         for existing in event.tasks:
             if existing.pet_id is not None and existing.pet_id == task.pet_id:
-                print(
-                    f"[WARNING] Conflict at {event.datetime}: pet_id={task.pet_id} "
+                name = _pet_name(task.pet_id)
+                warning = (
+                    f"[WARNING] Same-pet conflict at {event.datetime}: {name} "
                     f"already has '{existing.name}'. Adding '{task.name}' anyway."
                 )
                 break
+            else:
+                existing_name = _pet_name(existing.pet_id)
+                task_name = _pet_name(task.pet_id)
+                warning = (
+                    f"[WARNING] Cross-pet conflict at {event.datetime}: "
+                    f"{existing_name} has '{existing.name}' and "
+                    f"{task_name} is adding '{task.name}' at the same time."
+                )
+                break
+        if warning:
+            print(warning)
         event.add_task(task)
         if event not in schedule.events:
             schedule.add_event(event)
+        return warning
 
     def get_tasks_sorted_by_priority(self, owner: Owner) -> List[Task]:
-        """Return all owner tasks ordered high > medium > low."""
+        """Return all of an owner's tasks sorted by priority: high first, then medium, then low.
+
+        Tasks with an unrecognized priority string are placed at the very end.
+        Uses the module-level _PRIORITY_ORDER mapping so the sort order is
+        consistent everywhere in the codebase.
+        """
         return sorted(self.get_tasks_by_owner(owner), key=lambda t: _PRIORITY_ORDER.get(t.priority, 99))
 
     def sort_by_time(self, tasks: List[Task]) -> List[Task]:
-        """Return tasks sorted by their earliest scheduled event time (HH:MM).
-        Tasks with no scheduled event are placed at the end."""
+        """Return the given task list sorted by earliest scheduled event time (HH:MM).
+
+        Scans every event in every managed schedule to find the first time each
+        task appears, then sorts ascending by that time. Tasks that are not
+        linked to any scheduled event are treated as (24, 0) and placed at the
+        end of the list, so they don't get lost but don't crowd out timed tasks.
+        """
         task_times: dict[int, str] = {}
         for schedule in self.schedules:
             for event in schedule.events:

@@ -66,11 +66,14 @@ My design changed after Claude looked over the skeleton of the implementation an
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+    My scheduler considers time and priority of tasks. I decided to focus on these because a pet owner should be focusing on the needs of their pet as opposed to their own preferences. Priority trumps time in this way but only when tasks occur at the same time. 
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+    My scheduler doesn't take into account the duration of a task when addressing task conflicts of different priority. Expanding on that tradeoff, you'd want to have a task with a higher priority to rise to the top over a lower priority task given time constraints. It is reasonable here because balancing the duration of a task with the owner's ability to perform it requires a certain amount of buffer time. In reality a reasonable expectation is to schedule based on 15 minute chunks to accomodate for variance. That would add a good amount of complexity to the scheduling algorithm.
 ---
 
 ## 3. AI Collaboration

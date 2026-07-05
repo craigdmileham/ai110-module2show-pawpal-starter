@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from pawpal_system import Owner, Pet, Task, Event, Schedule, Scheduler
+from pawpal_system import Owner, Pet, Task, Event, Schedule, Scheduler, _PRIORITY_ORDER
 
 # Setup
 scheduler = Scheduler(id=1)
@@ -35,12 +35,12 @@ event_morning = Event(id=1, datetime=(today + timedelta(hours=7)).isoformat())
 event_noon    = Event(id=2, datetime=(today + timedelta(hours=12)).isoformat())
 event_evening = Event(id=3, datetime=(today + timedelta(hours=18)).isoformat())
 
-scheduler.schedule_task(walk,    event_morning, Schedule(id=1))
-scheduler.schedule_task(feeding, event_morning, Schedule(id=1))
-scheduler.schedule_task(bath,    event_noon,    Schedule(id=2))
-scheduler.schedule_task(brush,   event_morning, Schedule(id=1))
-scheduler.schedule_task(play,    event_noon,    Schedule(id=2))
-scheduler.schedule_task(meds,    event_evening, Schedule(id=3))
+scheduler.schedule_task(walk,    event_morning, Schedule(id=1), pets=owner.pets)
+scheduler.schedule_task(feeding, event_morning, Schedule(id=1), pets=owner.pets)
+scheduler.schedule_task(bath,    event_noon,    Schedule(id=2), pets=owner.pets)
+scheduler.schedule_task(brush,   event_morning, Schedule(id=1), pets=owner.pets)
+scheduler.schedule_task(play,    event_noon,    Schedule(id=2), pets=owner.pets)
+scheduler.schedule_task(meds,    event_evening, Schedule(id=3), pets=owner.pets)
 
 schedule = Schedule(id=10)
 schedule.add_event(event_morning)
@@ -49,7 +49,7 @@ schedule.add_event(event_evening)
 scheduler.add_schedule(schedule)
 
 # Demo conflict detection: schedule bath for Buddy at morning (already has walk + feeding there)
-scheduler.schedule_task(bath, event_morning, schedule)
+scheduler.schedule_task(bath, event_morning, schedule, pets=owner.pets)
 
 # Print today's schedule
 print("\nToday's Schedule")
@@ -64,12 +64,15 @@ for event in schedule.get_events(sort=True):
         recur_tag = " [R]" if task.recurring else ""
         print(f"  [{pet_name}] {task.get_name()}{recur_tag} ({task.get_duration()} min) — {task.get_priority()} priority")
 
+task_time = {id(t): e.get_time() for s in scheduler.schedules for e in s.events for t in e.tasks}
+
 print("\nAll Tasks by Priority")
 print("=" * 40)
 for task in scheduler.get_tasks_sorted_by_priority(owner):
     pet_name = next((p.name for p in owner.pets if p.id == task.pet_id), "Unknown")
     recur_tag = " [R]" if task.recurring else ""
-    print(f"  [{task.get_priority().upper()}] [{pet_name}] {task.get_name()}{recur_tag} ({task.get_duration()} min)")
+    time_str = task_time.get(id(task), "No time")
+    print(f"  [{task.get_priority().upper()}] [{pet_name}] {task.get_name()}{recur_tag} ({task.get_duration()} min) @ {time_str}")
 
 # Add extra tasks out of order (evening task first, then morning)
 nap     = Task(name="Afternoon Nap",   id=7, type="rest",     duration=60, recurring=False, priority="low",    description="Let Buddy rest",             status="pending")
@@ -81,30 +84,42 @@ whiskers.add_task(groom)
 buddy.add_task(checkup)
 
 event_late = Event(id=4, datetime=(today + timedelta(hours=20)).isoformat())
-scheduler.schedule_task(checkup, event_late,    schedule)
-scheduler.schedule_task(nap,     event_noon,    schedule)
-scheduler.schedule_task(groom,   event_morning, schedule)
+scheduler.schedule_task(checkup, event_late,    schedule, pets=owner.pets)
+scheduler.schedule_task(nap,     event_noon,    schedule, pets=owner.pets)
+scheduler.schedule_task(groom,   event_morning, schedule, pets=owner.pets)
+
+task_time = {id(t): e.get_time() for s in scheduler.schedules for e in s.events for t in e.tasks}
 
 # Demo sort_by_time
 print("\nAll Tasks Sorted by Time")
 print("=" * 40)
 all_tasks = scheduler.get_tasks_by_owner(owner)
-task_time = {id(t): e.get_time() for s in scheduler.schedules for e in s.events for t in e.tasks}
 for task in scheduler.sort_by_time(all_tasks):
     pet_name = next((p.name for p in owner.pets if p.id == task.pet_id), "Unknown")
     time_str = task_time.get(id(task), "No time")
     print(f"  [{time_str}] [{pet_name}] {task.get_name()} — {task.get_status()}")
 
 # Demo get_tasks_by_pet_name
+def sort_tasks_by_time_then_priority(tasks):
+    return sorted(
+        tasks,
+        key=lambda t: (
+            tuple(map(int, task_time[id(t)].split(":"))) if id(t) in task_time and task_time[id(t)] else (24, 0),
+            _PRIORITY_ORDER.get(t.priority, 99),
+        ),
+    )
+
 print("\nTasks for Buddy")
 print("=" * 40)
-for task in scheduler.get_tasks_by_pet_name(owner, "Buddy"):
-    print(f"  {task.get_name()} ({task.get_priority()} priority) — {task.get_status()}")
+for task in sort_tasks_by_time_then_priority(scheduler.get_tasks_by_pet_name(owner, "Buddy")):
+    time_str = task_time.get(id(task), "No time")
+    print(f"  [{time_str}] {task.get_name()} ({task.get_priority()} priority) — {task.get_status()}")
 
 print("\nTasks for Whiskers")
 print("=" * 40)
-for task in scheduler.get_tasks_by_pet_name(owner, "Whiskers"):
-    print(f"  {task.get_name()} ({task.get_priority()} priority) — {task.get_status()}")
+for task in sort_tasks_by_time_then_priority(scheduler.get_tasks_by_pet_name(owner, "Whiskers")):
+    time_str = task_time.get(id(task), "No time")
+    print(f"  [{time_str}] {task.get_name()} ({task.get_priority()} priority) — {task.get_status()}")
 
 print("\nRecurring Task Auto-Creation Demo")
 print("=" * 40)

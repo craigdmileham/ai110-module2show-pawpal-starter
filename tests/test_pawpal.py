@@ -182,6 +182,66 @@ def test_mark_complete_weekly_scheduled_in_7_days():
     assert event is not None
     assert datetime.fromisoformat(event.datetime).date() == in_7_days
 
+# --- Conflict detection tests ---
+
+def test_schedule_task_no_conflict_returns_none():
+    pet = make_pet(id=1)
+    task = make_task(id=1)
+    pet.add_task(task)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T07:00:00")
+    result = scheduler.schedule_task(task, event, schedule, pets=[pet])
+    assert result is None
+
+def test_schedule_task_same_pet_conflict_returns_warning():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T07:00:00")
+    scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    warning = scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    assert warning is not None
+    assert "[WARNING]" in warning
+    assert "Same-pet" in warning
+    assert "Buddy" in warning
+
+def test_schedule_task_cross_pet_conflict_returns_warning():
+    pet1 = make_pet(id=1)
+    pet2 = Pet(name="Whiskers", id=2, species="Cat")
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet1.add_task(t1)
+    pet2.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T07:00:00")
+    scheduler.schedule_task(t1, event, schedule, pets=[pet1, pet2])
+    warning = scheduler.schedule_task(t2, event, schedule, pets=[pet1, pet2])
+    assert warning is not None
+    assert "[WARNING]" in warning
+    assert "Cross-pet" in warning
+    assert "Buddy" in warning
+    assert "Whiskers" in warning
+
+def test_schedule_task_warning_includes_task_names():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T09:00:00")
+    scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    warning = scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    assert "Test Task" in warning
+
+
 def test_mark_complete_does_not_change_original_task_fields():
     pet = make_pet(id=1)
     task = make_recurring_task(id=104, frequency="daily")

@@ -255,3 +255,187 @@ def test_mark_complete_does_not_change_original_task_fields():
     assert task.priority == "high"
     assert task.status == "complete"
     assert task.pet_id == pet.id
+
+
+# --- Sorting correctness tests ---
+
+def make_event_task(task_id, event_datetime, schedule, scheduler, pet):
+    task = Task(name=f"Task {task_id}", id=task_id, type="exercise", duration=15,
+                recurring=False, priority="medium", description="desc", status="pending")
+    pet.add_task(task)
+    event = Event(id=task_id, datetime=event_datetime)
+    scheduler.schedule_task(task, event, schedule, pets=[pet])
+    return task
+
+
+def test_get_events_sort_returns_chronological_order():
+    schedule = Schedule(id=1)
+    e1 = Event(id=1, datetime="2026-07-05T09:00:00")
+    e2 = Event(id=2, datetime="2026-07-05T07:00:00")
+    e3 = Event(id=3, datetime="2026-07-05T11:00:00")
+    schedule.add_event(e1)
+    schedule.add_event(e2)
+    schedule.add_event(e3)
+    sorted_events = schedule.get_events(sort=True)
+    datetimes = [e.datetime for e in sorted_events]
+    assert datetimes == sorted(datetimes)
+
+
+def test_sort_by_time_returns_tasks_in_time_order():
+    pet = make_pet(id=1)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    t_noon = make_event_task(201, "2026-07-05T12:00:00", schedule, scheduler, pet)
+    t_morning = make_event_task(202, "2026-07-05T06:00:00", schedule, scheduler, pet)
+    t_evening = make_event_task(203, "2026-07-05T18:00:00", schedule, scheduler, pet)
+    sorted_tasks = scheduler.sort_by_time([t_noon, t_morning, t_evening])
+    assert sorted_tasks == [t_morning, t_noon, t_evening]
+
+
+def test_sort_by_time_unscheduled_tasks_go_last():
+    pet = make_pet(id=1)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    t_early = make_event_task(204, "2026-07-05T08:00:00", schedule, scheduler, pet)
+    t_unscheduled = Task(name="Floating Task", id=205, type="grooming", duration=20,
+                         recurring=False, priority="low", description="no event", status="pending")
+    pet.add_task(t_unscheduled)
+    sorted_tasks = scheduler.sort_by_time([t_unscheduled, t_early])
+    assert sorted_tasks[0] is t_early
+    assert sorted_tasks[-1] is t_unscheduled
+
+
+def test_sort_by_time_stable_across_same_time():
+    pet = make_pet(id=1)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    event = Event(id=1, datetime="2026-07-05T10:00:00")
+    t1 = Task(name="A", id=206, type="exercise", duration=10, recurring=False,
+              priority="high", description="d", status="pending")
+    t2 = Task(name="B", id=207, type="exercise", duration=10, recurring=False,
+              priority="high", description="d", status="pending")
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    sorted_tasks = scheduler.sort_by_time([t1, t2])
+    assert len(sorted_tasks) == 2
+    assert t1 in sorted_tasks and t2 in sorted_tasks
+
+
+# --- Recurrence logic tests ---
+
+def test_mark_complete_daily_new_task_is_added_to_pet():
+    pet = make_pet(id=1)
+    task = make_recurring_task(id=110, frequency="daily")
+    pet.add_task(task)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    before_count = len(pet.get_tasks())
+    new_task = scheduler.mark_task_complete(task, schedule=schedule, pet=pet)
+    assert len(pet.get_tasks()) == before_count + 1
+    assert new_task in pet.get_tasks()
+
+
+def test_mark_complete_daily_new_task_inherits_type_and_duration():
+    pet = make_pet(id=1)
+    task = make_recurring_task(id=111, frequency="daily")
+    pet.add_task(task)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    new_task = scheduler.mark_task_complete(task, schedule=schedule, pet=pet)
+    assert new_task.type == task.type
+    assert new_task.duration == task.duration
+    assert new_task.description == task.description
+
+
+def test_mark_complete_daily_new_event_added_to_schedule():
+    pet = make_pet(id=1)
+    task = make_recurring_task(id=112, frequency="daily")
+    pet.add_task(task)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    scheduler.mark_task_complete(task, schedule=schedule, pet=pet)
+    assert len(schedule.get_events()) == 1
+
+
+def test_mark_complete_recurring_original_marked_complete():
+    pet = make_pet(id=1)
+    task = make_recurring_task(id=113, frequency="daily")
+    pet.add_task(task)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    scheduler.add_schedule(schedule)
+    scheduler.mark_task_complete(task, schedule=schedule, pet=pet)
+    assert task.status == "complete"
+
+
+# --- Conflict detection tests (additional coverage) ---
+
+def test_no_conflict_when_different_event_times():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    e1 = Event(id=1, datetime="2026-07-05T07:00:00")
+    e2 = Event(id=2, datetime="2026-07-05T09:00:00")
+    w1 = scheduler.schedule_task(t1, e1, schedule, pets=[pet])
+    w2 = scheduler.schedule_task(t2, e2, schedule, pets=[pet])
+    assert w1 is None
+    assert w2 is None
+
+
+def test_conflict_warning_contains_event_datetime():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T08:30:00")
+    scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    warning = scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    assert "2026-07-05T08:30:00" in warning
+
+
+def test_conflict_task_still_added_despite_warning():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T07:00:00")
+    scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    assert t2 in event.get_tasks()
+
+
+def test_three_tasks_same_event_generates_conflict_for_second_and_third():
+    pet = make_pet(id=1)
+    t1 = make_task(id=1)
+    t2 = make_task(id=2)
+    t3 = make_task(id=3)
+    pet.add_task(t1)
+    pet.add_task(t2)
+    pet.add_task(t3)
+    scheduler = Scheduler(id=1)
+    schedule = Schedule(id=1)
+    event = Event(id=1, datetime="2026-07-05T10:00:00")
+    w1 = scheduler.schedule_task(t1, event, schedule, pets=[pet])
+    w2 = scheduler.schedule_task(t2, event, schedule, pets=[pet])
+    w3 = scheduler.schedule_task(t3, event, schedule, pets=[pet])
+    assert w1 is None
+    assert w2 is not None
+    assert w3 is not None

@@ -83,10 +83,16 @@ My design changed after Claude looked over the skeleton of the implementation an
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+    I used AI for brainstorming, refactoring, and task planning. I found that the most useful prompts in this process were to ask for explanations of a given functionality and then to follow up with implementation steps. I also found that mentioning a specific functionality of Python or Streamlit would yield better results for implementation. I also found that using Claude Code's planning mode led me to feel more confident about letting it go ahead and make changes automatically as it was following along with the plan. 
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+I didn't catch it at first and had to go back to correct it but during the class implementation all of the constructors would require specifying the object's ID. That is obviously bad practice that I went back and fixed later. While refining the task scheduling algorithm, the initial pass led the suggestion to forgetting a multi-pet scenario so I had to refine and prompt a couple of more times before getting a usable result.
+
+I manually tested the UI implementation but I found myself adding in the testing file as context to each of my prompts and having Claude go through and test after each implementation. I'd go back and confirm that the tests were not just returning some false value and were actually testing functionality appropriately.
 
 ---
 
@@ -97,10 +103,16 @@ My design changed after Claude looked over the skeleton of the implementation an
 - What behaviors did you test?
 - Why were these tests important?
 
+I tested the CRUD behaviors related to adding owners, pets, tasks, and the schedule. These tests were important to ensuring that the app was going to function properly after a lot of iteration over the functionality and implementation. 
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+I'm pretty confident that the scheduler works really well. I tested each core part of it's functionality prior to continuing implementation of the UI and once I did, Claude had gone ahead and just come up with an additional feature allowing the user to add an offset to the task timings while generating schedules. That feature works pretty flawlessly. 
+
+The edge cases I'd want to test more are with input validation. I'd also want to make sure that references to owners and pets were being done by their IDs instead of other values to ensure that actions acted on the expected owner/pet every single time.
 
 ---
 
@@ -110,10 +122,16 @@ My design changed after Claude looked over the skeleton of the implementation an
 
 - What part of this project are you most satisfied with?
 
+I'm most satisfied with my initial design. I was able to work with Claude to really refine the rough edges off and I think it actually works well.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+I'd go back and expand on the user interface. My system design kept in mind that owner's schedules and pet's schedules differ so there is the opportunity to refine that idea in a second iteration. I'd like to expand with the idea that there can be co-ownership of pet and you may want to split tasks between owners depending on their schedules.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+I learned that AI can be steered in a clearer direction if you have some idea of how you want to implement a feature using a specific algorithm, data structures, language feature, etc. I also learned that doing that while using a planning task and extra added file context can really speed up implementation without as many brittle results.

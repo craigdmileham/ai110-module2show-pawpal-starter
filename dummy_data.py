@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from models import Event, Medication, Owner, Pet, Task
-from scheduler import Scheduler, ScheduleConflictError
+from pawpal_system import Event, Medication, Owner, Pet, Task, Schedule, Scheduler
 
 
 def load_dummy_data() -> tuple[Owner, Scheduler]:
     scheduler = Scheduler()
+    schedule = Schedule()
+    scheduler.add_schedule(schedule)
 
     jordan = Owner(name="Jordan")
-    scheduler.addSchedule(jordan.getSchedule())
 
     luna = Pet(name="Luna", species="dog", breed="Golden Retriever")
     milo = Pet(name="Milo", species="cat", breed="Tabby")
-    jordan.addPet(luna)
-    jordan.addPet(milo)
+    jordan.add_pet(luna)
+    jordan.add_pet(milo)
 
     # Luna's tasks
     walk = Task(
@@ -24,8 +24,9 @@ def load_dummy_data() -> tuple[Owner, Scheduler]:
         duration=30,
         priority="high",
         recurring=True,
-        frequency="Daily",
+        frequency="daily",
         description="30-minute walk around the neighborhood",
+        status="pending",
     )
     feeding_luna = Task(
         name="Luna's Dinner",
@@ -33,11 +34,12 @@ def load_dummy_data() -> tuple[Owner, Scheduler]:
         duration=10,
         priority="high",
         recurring=True,
-        frequency="Daily",
+        frequency="daily",
         description="Measure and serve Luna's evening meal",
+        status="pending",
     )
-    luna.addTask(walk)
-    luna.addTask(feeding_luna)
+    luna.add_task(walk)
+    luna.add_task(feeding_luna)
 
     # Milo's tasks
     brush = Task(
@@ -46,8 +48,9 @@ def load_dummy_data() -> tuple[Owner, Scheduler]:
         duration=15,
         priority="medium",
         recurring=True,
-        frequency="Weekly",
+        frequency="weekly",
         description="Brush Milo's coat to prevent matting",
+        status="pending",
     )
     feeding_milo = Task(
         name="Milo's Dinner",
@@ -55,11 +58,12 @@ def load_dummy_data() -> tuple[Owner, Scheduler]:
         duration=5,
         priority="high",
         recurring=True,
-        frequency="Daily",
+        frequency="daily",
         description="Serve Milo's evening meal",
+        status="pending",
     )
-    milo.addTask(brush)
-    milo.addTask(feeding_milo)
+    milo.add_task(brush)
+    milo.add_task(feeding_milo)
 
     # Milo's medication
     allergy_med = Medication(
@@ -67,32 +71,18 @@ def load_dummy_data() -> tuple[Owner, Scheduler]:
         dosage="5.4mg",
         frequency="once daily",
     )
-    milo.addMedication(allergy_med)
+    milo.add_medication(allergy_med)
 
-    # Schedule tasks starting today
+    # Schedule tasks for today
     today = datetime.now().replace(second=0, microsecond=0)
     eight_am = today.replace(hour=8, minute=0)
     six_pm = today.replace(hour=18, minute=0)
     ten_am = today.replace(hour=10, minute=0)
 
-    try:
-        scheduler.scheduleTask(walk, Event(datetime=eight_am), jordan.getSchedule())
-    except ScheduleConflictError:
-        pass
-
-    try:
-        scheduler.scheduleTask(feeding_luna, Event(datetime=six_pm), jordan.getSchedule())
-    except ScheduleConflictError:
-        pass
-
-    try:
-        scheduler.scheduleTask(feeding_milo, Event(datetime=six_pm.replace(minute=15)), jordan.getSchedule())
-    except ScheduleConflictError:
-        pass
-
-    try:
-        scheduler.scheduleTask(brush, Event(datetime=ten_am), jordan.getSchedule())
-    except ScheduleConflictError:
-        pass
+    all_pets = [luna, milo]
+    scheduler.schedule_task(walk, Event(datetime=eight_am.isoformat()), schedule, pets=all_pets)
+    scheduler.schedule_task(feeding_luna, Event(datetime=six_pm.isoformat()), schedule, pets=all_pets)
+    scheduler.schedule_task(feeding_milo, Event(datetime=six_pm.replace(minute=15).isoformat()), schedule, pets=all_pets)
+    scheduler.schedule_task(brush, Event(datetime=ten_am.isoformat()), schedule, pets=all_pets)
 
     return jordan, scheduler

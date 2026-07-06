@@ -74,6 +74,60 @@ pet_rows = [
 ]
 st.dataframe(pet_rows, use_container_width=True)
 
+# --- Medications ---
+st.markdown("#### Medications")
+
+med_rows = [
+    {
+        "Pet": p.get_name(),
+        "Medication": m.get_name(),
+        "Dosage": m.get_dosage(),
+        "Frequency": m.get_frequency(),
+    }
+    for p in owner.get_pets()
+    for m in p.get_medications()
+]
+if med_rows:
+    st.dataframe(med_rows, use_container_width=True)
+else:
+    st.caption("No medications recorded.")
+
+with st.expander("Add / remove a medication"):
+    med_pet_options = [p.get_name() for p in owner.get_pets()]
+    if med_pet_options:
+        med_pet_name = st.selectbox("Pet", med_pet_options, key="med_pet")
+        med_pet = next(p for p in owner.get_pets() if p.get_name() == med_pet_name)
+
+        st.markdown("**Add medication**")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            med_name = st.text_input("Name", placeholder="e.g. Apoquel", key="med_name")
+        with col2:
+            med_dosage = st.text_input("Dosage", placeholder="e.g. 5.4mg", key="med_dosage")
+        with col3:
+            med_freq = st.text_input("Frequency", placeholder="e.g. once daily", key="med_freq")
+        if st.button("Add medication"):
+            if med_name.strip():
+                from pawpal_system import Medication
+                med_pet.add_medication(Medication(name=med_name.strip(), dosage=med_dosage.strip(), frequency=med_freq.strip()))
+                st.success(f"Added {med_name} for {med_pet.get_name()}.")
+                st.rerun()
+            else:
+                st.error("Medication name is required.")
+
+        st.markdown("**Remove medication**")
+        remove_options = {f"{m.get_name()} ({m.get_dosage()})": m for m in med_pet.get_medications()}
+        if remove_options:
+            remove_label = st.selectbox("Select medication to remove", list(remove_options.keys()), key="med_remove")
+            if st.button("Remove medication"):
+                med_pet.remove_medication(remove_options[remove_label])
+                st.success(f"Removed {remove_label} from {med_pet.get_name()}.")
+                st.rerun()
+        else:
+            st.caption(f"{med_pet.get_name()} has no medications to remove.")
+    else:
+        st.info("Add a pet above before managing medications.")
+
 st.divider()
 
 # --- Tasks ---

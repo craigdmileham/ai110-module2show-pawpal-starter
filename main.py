@@ -121,6 +121,16 @@ for task in sort_tasks_by_time_then_priority(scheduler.get_tasks_by_pet_name(own
     time_str = task_time.get(id(task), "No time")
     print(f"  [{time_str}] {task.get_name()} ({task.get_priority()} priority) — {task.get_status()}")
 
+print("\nMedications")
+print("=" * 40)
+for pet in owner.get_pets():
+    meds = pet.get_medications()
+    if meds:
+        for med in meds:
+            print(f"  [{pet.get_name()}] {med.get_name()} — {med.get_dosage()}, {med.get_frequency()}")
+    else:
+        print(f"  [{pet.get_name()}] No medications.")
+
 print("\nRecurring Task Auto-Creation Demo")
 print("=" * 40)
 new_walk = scheduler.mark_task_complete(walk, schedule=schedule, pet=buddy)

@@ -131,14 +131,29 @@ The test cases cover the correctness of the scheduler including scheduling confl
 | Conflict detection | `Scheduler.schedule_task` | Before adding a task to an event, inspects existing tasks for same-pet conflicts (two tasks for the same pet at the same time) and cross-pet conflicts (two different pets at the same time slot). Warnings are printed and returned but are non-blocking — the task is always added. |
 | Recurring tasks | `Scheduler.mark_task_complete` | When a task has a `frequency` of `"daily"` or `"weekly"` and a schedule is provided, marking it complete automatically creates a new pending copy offset by 1 or 7 days respectively, adds it to the pet, and schedules it in a new Event. |
 
+## Features
+
+- Add and manage multiple owners and pets
+- Add tasks with title, type, duration, priority, and description
+- Mark tasks as complete
+- Recurring tasks (daily and weekly) — automatically schedules the next occurrence when marked complete
+- Sort tasks by priority (high → medium → low)
+- Sort tasks by scheduled time
+- Filter tasks by status or priority
+- Conflict warnings when two tasks overlap at the same time slot (same-pet and cross-pet)
+- Look-ahead window to count upcoming tasks within a configurable number of days
+- Generate a sequential daily schedule across one or more owners
+- Medication tracking per pet
+- Preloaded demo data to explore the app immediately
+
+
 ## 📸 Demo Walkthrough
 
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+1. Add an owner and/or a pet
+2. Add tasks for a given pet. Also add any needed medications per pet.
+3. Once all owners and pets are added, select your owners to build a task schedule for.
+4. If you don't want to build a schedule, you can scroll down further to view priority sorted and time sorted views of all tasks.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
